@@ -206,6 +206,15 @@ function to_start_position(shape) {
     return result;
 };
 
+var draw_test_shape = function(shape) {
+    shape = to_start_position(shape);
+    draw_world(BORDERS);
+    _.each(shape, function(triangle) {
+        draw_triangle(triangle, "#FFFF00");
+    })
+    throw 1;
+}
+
 function shape_a(rotation) {
     var SHAPE_A_0 = [
         [1, 0], [2, 0], [3, 0], [4, 0], [5, 0], [6, 0], [7, 0],
@@ -276,6 +285,75 @@ function shape_b(rotation) {
     throw 1;
 };
 
+function shape_c(rotation) {
+    var SHAPE_C_0 = [
+        [5, 0], [6, 0], [7, 0], [8, 0], [9, 0],
+        [4, 1], [5, 1], [9, 1],
+        [1, 2], [2, 2], [3, 2], [4, 2],
+    ];
+
+    var SHAPE_C_60 = [
+        [0, 0], [1, 0],
+        [1, 1], [2, 1], [3, 1], [4, 1], [5, 1], [6, 1],
+        [6, 2], [7, 2],
+        [6, 3], [7, 3],
+    ];
+
+    var SHAPE_C_120 = [
+        [3, 0],
+        [2, 1], [3, 1],
+        [2, 2], [3, 2],
+        [3, 3], [4, 3],
+        [3, 4], [4, 4],
+        [1, 5], [2, 5], [3, 5],
+    ];
+
+    switch (rotation) {
+        case 0: return SHAPE_C_0;
+        case 60: return SHAPE_C_60;
+        case 120: return SHAPE_C_120;
+        case 180: return translate(flip_x(flip_y(SHAPE_C_0)), [0, 1]);
+        case 240: return translate(flip_x(flip_y(SHAPE_C_60)), [0, 1]);
+        case 300: return translate(flip_x(flip_y(SHAPE_C_120)), [0, 1]);
+    }
+
+    throw 1;
+};
+
+function shape_d(rotation) {
+    var SHAPE_D_0 = [
+        [1, 0], [2, 0], [3, 0], [4, 0], [5, 0],
+        [5, 1], [6, 1], [7, 1],
+        [6, 2], [7, 2], [8, 2],
+    ];
+
+    var SHAPE_D_60 = [
+        [0, 0], [1, 0],
+        [1, 1], [2, 1],
+        [1, 2], [2, 2],
+        [0, 3], [1, 3], [2, 3],
+        [0, 4], [1, 4],
+    ];
+
+    var SHAPE_D_120 = [
+        [7, 0],
+        [6, 1], [7, 1],
+        [1, 2], [2, 2], [3, 2], [4, 2], [5, 2], [6, 2],
+        [1, 3], [3, 3],
+    ];
+
+    switch (rotation) {
+        case 0: return SHAPE_D_0;
+        case 60: return SHAPE_D_60;
+        case 120: return SHAPE_D_120;
+        case 180: return translate(flip_x(flip_y(SHAPE_D_0)), [0, 1]);
+        case 240: return translate(flip_x(flip_y(SHAPE_D_60)), [0, 1]);
+        case 300: return translate(flip_x(flip_y(SHAPE_D_120)), [0, 1]);
+    }
+
+    throw 1;
+};
+
 var create_shape_cache = function(shape_func) {
     return {
         0: to_start_position(shape_func(0)),
@@ -284,23 +362,35 @@ var create_shape_cache = function(shape_func) {
         180: to_start_position(shape_func(180)),
         240: to_start_position(shape_func(240)),
         300: to_start_position(shape_func(300)),
+        
+        // These are actually the same as above but reflected
+        360: to_start_position(flip_x(shape_func(0))),
+        420: to_start_position(flip_x(shape_func(60))),
+        480: to_start_position(flip_x(shape_func(120))),
+        540: to_start_position(flip_x(shape_func(180))),
+        600: to_start_position(flip_x(shape_func(240))),
+        660: to_start_position(flip_x(shape_func(300))),
     };
 };
 
 SHAPE_A = create_shape_cache(shape_a);
 SHAPE_B = create_shape_cache(shape_b);
+SHAPE_C = create_shape_cache(shape_c);
+SHAPE_D = create_shape_cache(shape_d);
 
-var restore_shape_state = function (shape, state) {
+// draw_test_shape(SHAPE_D[660]);
+
+var restore_shape_state = function (shape_cache, state) {
     var rotation = Math.floor(state / (HEIGHT * WIDTH / 2)) * 60;
-    if (rotation > 300) {
-        return false;
+    if (rotation > 660) {
+        return null;
     }
     state = state % (HEIGHT * WIDTH / 2);
 
     var delta_y = Math.floor(state / (WIDTH / 2));
     var delta_x = Math.floor((state % (WIDTH / 2)) * 2 + delta_y % 2);
 
-    return translate(shape[rotation], [delta_x, delta_y]);
+    return translate(shape_cache[rotation], [delta_x, delta_y]);
 };
 
 // Searches shapes for collisions. Will return -1 if there are no collisoins.
@@ -336,16 +426,18 @@ var check_collision = function (shapes) {
     return -1;
 };
 
-var states = [0, 0, 0];
+var states = [0, 0, 0, 0];
 
 var shapes = _.map(states, function() {return null});
 var update_shape = function(i) {
-    if (i === 0 || i === 1 || i === 2) {
-        shapes[i] = restore_shape_state(SHAPE_B, states[i]);
-        return;
-    }
+    var shape_cache =  {
+        0: SHAPE_D,
+        1: SHAPE_C,
+        2: SHAPE_B,
+        3: SHAPE_A,
+    }[i];
 
-    shapes[i] = restore_shape_state(SHAPE_A, states[i]);
+    shapes[i] = restore_shape_state(shape_cache, states[i]);
 };
 _.each(states, function(bla, i) {
     update_shape(i);
@@ -382,18 +474,13 @@ var try_many = function () {
                 continue;
             }
 
-            counter++;
-            if (counter % 1000 === 0) {
-                _.defer(try_many);
-                return;
-            }
             states[i]++;
             update_shape(i);
 
-            if (!shapes[i] && i == 0) {
+            if (shapes[i] === null && i == 0) {
                 // We searched the entire tree
                 throw counter;
-            } else if (!shapes[i]) {
+            } else if (shapes[i] === null) {
                 // No more places to move this shape... Move the shape prior to
                 // us and begin anew.
                 states[i] = 0;
@@ -401,6 +488,13 @@ var try_many = function () {
             } else {
                 break;
             }
+        }
+
+        counter++;
+        if (counter % 5000 === 0) {
+            draw_shapes();
+            _.defer(try_many);
+            return;
         }
     }
 };

@@ -134,13 +134,22 @@ var ROTATION = {
 
 }
 
+// var BORDERS = [
+//     [0, 0], [1, 0], [2, 0], [10, 0], [14, 0], [15, 0],
+//     [0, 1], [1, 1], [15, 1],
+//     [0, 2], [1, 2], [15, 2],
+//     [0, 3], [1, 3], [2, 3], [14, 3], [15, 3],
+//     [0, 4], [1, 4], [2, 4], [3, 4], [13, 4], [14, 4], [15, 4],
+//     [0, 5], [1, 5], [2, 5], [3, 5], [4, 5], [12, 5], [13, 5], [14, 5], [15, 5],
+// ];
+
 var BORDERS = [
-    [0, 0], [1, 0], [2, 0], [10, 0], [14, 0], [15, 0],
-    [0, 1], [1, 1], [15, 1],
-    [0, 2], [1, 2], [15, 2],
-    [0, 3], [1, 3], [2, 3], [14, 3], [15, 3],
-    [0, 4], [1, 4], [2, 4], [3, 4], [13, 4], [14, 4], [15, 4],
-    [0, 5], [1, 5], [2, 5], [3, 5], [4, 5], [12, 5], [13, 5], [14, 5], [15, 5],
+    [0, 0], [1, 0], [2, 0], [3, 0], [4, 0], [5, 0], [6, 0], [7, 0], [8, 0], [12, 0], [13, 0], [14, 0], [15, 0],
+    [0, 1], [1, 1], [13, 1], [14, 1], [15, 1],
+    [0, 2], [14, 2], [15, 2],
+    [0, 3], [14, 3], [15, 3],
+    [0, 4], [1, 4], [14, 4], [15, 4],
+    [0, 5], [1, 5], [2, 5], [3, 5], [4, 5], [14, 5], [15, 5],
 ];
 
 function flip_x(shape) {
@@ -210,7 +219,7 @@ var draw_test_shape = function(shape) {
     shape = to_start_position(shape);
     draw_world(BORDERS);
     _.each(shape, function(triangle) {
-        draw_triangle(triangle, "#FFFF00");
+        // draw_triangle(triangle, "#FFFF00");
     })
     throw 1;
 }
@@ -463,13 +472,14 @@ var try_many = function () {
         var collision = check_collision(shapes);
         if (collision === -1) {
             draw_shapes();
-            console.log(states);
+            console.log(states.toString());
             collision = states.length - 1;
         }
 
         for (var i = states.length - 1; i >= 0; --i) {
             if (i > collision) {
                 states[i] = 0;
+                console.log(states);
                 update_shape(i);
                 continue;
             }
@@ -492,7 +502,6 @@ var try_many = function () {
 
         counter++;
         if (counter % 5000 === 0) {
-            draw_shapes();
             _.defer(try_many);
             return;
         }

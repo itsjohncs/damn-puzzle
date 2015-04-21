@@ -1,6 +1,11 @@
 // # The coordinate system
 //
-// The coordinate system has two perpindicular axes 
+// The coordinate system has two perpindicular axes. Each point represents the
+// center of a triangle in the world. So (0, 0) is the center of the
+// bottommost-leftmost triangle. (1, 0) is the triangle to the right of (0, 0).
+// Etc. This coordinate system makes thins a little weird because if you just
+// do a simple translation up one, you'll destroy your shape because over
+// triangle within the shape will flip over.
 
 var canvas = document.getElementById("game-canvas");
 
@@ -8,24 +13,50 @@ var ctx = canvas.getContext("2d");
 
 var TRIANGLE_RADIUS = 50.0;
 
-function real_pos(pos) {
-    var W = (2.0 * TRIANGLE_RADIUS) / Math.sqrt(3.0)
+// The largest allowed X value plust 1 in the triangly coordinat esystem
+var WIDTH = 16;
 
-    var H1, H2;
+// The largest allowed Y value plust 1 in the triangly coordinat esystem
+var HEIGHT = 6;
+
+// This converts a coordinate like (1, 3) (corresponding to a specific center
+// of a triangle) to actual coordinates on the canvas (still the center of where
+// the triangle should be drawn though).
+function real_pos(pos) {
+    // The difference between the X coordinates of two triangles sitting right
+    // next to eachother (on the same row).
+    var x_spacing = (2.0 * TRIANGLE_RADIUS) / Math.sqrt(3.0)
+
+    // This is the distance between the bottom of the canvas and the center of
+    // the bottom most triangle.
     var y_start;
+
+    // Depending on whether we're on an even numbered column or an odd numbered
+    // column, our resulting Y coordinate will be different. There is also
+    // alternating differences between the Y coordinates of triangles sitting
+    // on top of eachother (alternating between 2 times the radius and just the
+    // radius).
+    var y_spacing_first, y_spacing_second;
     if (pos[0] % 2 === 0) {
         y_start = TRIANGLE_RADIUS / 2.0;
-        H1 = TRIANGLE_RADIUS * 2;
-        H2 = TRIANGLE_RADIUS;
+
+        // On even numbered columns, the y distance between the bottom most
+        // triangle and the triangle right above it is 2R, then the next
+        // distance is R, and then they alternate.
+        y_spacing_first = TRIANGLE_RADIUS * 2;
+        y_spacing_second = TRIANGLE_RADIUS;
     } else {
         y_start = TRIANGLE_RADIUS;
-        H1 = TRIANGLE_RADIUS;
-        H2 = TRIANGLE_RADIUS * 2;
+
+        // On odd numbered columns, the first distance is R and the second is
+        // 2R and then they alternate.
+        y_spacing_first = TRIANGLE_RADIUS;
+        y_spacing_second = TRIANGLE_RADIUS * 2;
     }
 
     return [
-        (pos[0] * W + 100),
-        600 - (Math.ceil(pos[1] / 2.0) * H1 + Math.floor(pos[1] / 2.0) * H2 + y_start + 100),
+        (pos[0] * x_spacing + 100),
+        600 - (Math.ceil(pos[1] / 2.0) * y_spacing_first + Math.floor(pos[1] / 2.0) * y_spacing_second + y_start + 100),
     ];
 };
 
@@ -85,6 +116,8 @@ function draw_triangle(pos, color) {
 function draw_world(triangles) {
     var largest_x = 16;
     var largest_y = 6;
+
+    ctx.clearRect ( 0 , 0 , canvas.width, canvas.height );
 
     for (var x = 0; x < largest_x; ++x) {
         for (var y = 0; y < largest_y; ++y) {
@@ -208,13 +241,114 @@ function shape_a(rotation) {
     throw 1;
 };
 
-// This converts
-var restore_shape_state(starting_shape, state) {
-
+SHAPE_A = {
+    0: to_start_position(shape_a(0)),
+    60: to_start_position(shape_a(60)),
+    120: to_start_position(shape_a(120)),
+    180: to_start_position(shape_a(180)),
+    240: to_start_position(shape_a(240)),
+    300: to_start_position(shape_a(300)),
 };
 
-draw_world(BORDERS);
-_.each(to_start_position(shape_a(120)), function (triangle) {
-    draw_triangle(triangle, "#00FF00");
-});
+var restore_shape_state = function (shape, state) {
+    var rotation = Math.floor(state / (HEIGHT * WIDTH / 2)) * 60;
+    if (rotation > 300) {
+        return false;
+    }
+    state = state % (HEIGHT * WIDTH / 2);
 
+    var delta_y = Math.floor(state / (WIDTH / 2));
+    var delta_x = Math.floor((state % (WIDTH / 2)) * 2 + delta_y % 2);
+
+    return translate(shape[rotation], [delta_x, delta_y]);
+};
+
+// Searches shapes for collisions. Will return -1 if there are no collisoins.
+// Otherwise, will return the index of the first shape to collide with those
+// before it (where the borders of the world are considered before the 0th
+// shape).
+var check_collision = function (shapes) {
+    var stringify = function(triangle) {return triangle.toString()};
+    var points = _.map(BORDERS, stringify);
+
+    var out_of_bounds = function(shape) {
+        return _.any(shape, function(triangle) {
+            return triangle[0] < 0 || triangle[0] >= WIDTH ||
+                   triangle[1] < 0 || triangle[1] >= HEIGHT;
+        })
+    }
+
+    for (var i = 0; i < shapes.length; ++i) {
+        if (out_of_bounds(shapes[i])) {
+            return i;
+        }
+
+        _.each(_.map(shapes[i], stringify), function(i) {
+            points.push(i);
+        });
+
+        // If there's a collision...
+        if (_.uniq(points).length !== points.length) {
+            return i;
+        }
+    }
+
+    return -1;
+};
+
+var states = [0, 0, 0];
+
+var shapes = _.map(states, function() {return restore_shape_state(SHAPE_A, 0)});
+var SHAPE_COLORS = ["#00FFF0", "#00FF00", "#0000FF", "#FFFF00", "#FF00FF"]
+var counter = 0;
+
+var draw_shapes = function () {
+    ctx.globalAlpha = 1;
+    draw_world(BORDERS);
+    _.each(shapes, function(shape, index) {
+        _.each(shape, function (triangle) {
+            ctx.globalAlpha = 0.4;
+            draw_triangle(triangle, SHAPE_COLORS[index]);
+        });
+    });
+};
+
+var try_many = function () {
+    while (true) {
+        var collision = check_collision(shapes);
+        if (collision === -1) {
+            draw_shapes();
+            console.log(states);
+            collision = states.length - 1;
+        }
+
+        for (var i = states.length - 1; i >= 0; --i) {
+            if (i > collision) {
+                states[i] = 0;
+                shapes[i] = restore_shape_state(SHAPE_A, 0);
+                continue;
+            }
+
+            counter++;
+            if (counter % 1000 === 0) {
+                _.defer(try_many);
+                return;
+            }
+            states[i]++;
+            shapes[i] = restore_shape_state(SHAPE_A, states[i]);
+
+            if (!shapes[i] && i == 0) {
+                // We searched the entire tree
+                throw counter;
+            } else if (!shapes[i]) {
+                // No more places to move this shape... Move the shape prior to
+                // us and begin anew.
+                states[i] = 0;
+                shapes[i] = restore_shape_state(SHAPE_A, 0);
+            } else {
+                break;
+            }
+        }
+    }
+};
+try_many();

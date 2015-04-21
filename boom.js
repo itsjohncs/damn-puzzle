@@ -241,14 +241,54 @@ function shape_a(rotation) {
     throw 1;
 };
 
-SHAPE_A = {
-    0: to_start_position(shape_a(0)),
-    60: to_start_position(shape_a(60)),
-    120: to_start_position(shape_a(120)),
-    180: to_start_position(shape_a(180)),
-    240: to_start_position(shape_a(240)),
-    300: to_start_position(shape_a(300)),
+function shape_b(rotation) {
+    var SHAPE_B_0 = [
+        [5, 0], [6, 0], [7, 0],
+        [6, 1], [7, 1],
+        [5, 2], [6, 2], [7, 2],
+        [1, 3], [2, 3], [3, 3], [4, 3], [5, 3],
+    ];
+
+    var SHAPE_B_60 = [
+        [1, 0],
+        [1, 1], [2, 1], [7, 1], [8, 1],
+        [2, 2], [3, 2], [4, 2], [5, 2], [6, 2], [7, 2], [8, 2],
+        [5, 3],
+    ];
+
+    var SHAPE_B_120 = [
+        [1, 0], [2, 0],
+        [0, 1], [1, 1],
+        [0, 2], [1, 2],
+        [0, 3], [1, 3], [2, 3], [4, 3],
+        [2, 4], [3, 4], [4, 4],
+    ];
+
+    switch (rotation) {
+        case 0: return SHAPE_B_0;
+        case 60: return SHAPE_B_60;
+        case 120: return SHAPE_B_120;
+        case 180: return translate(flip_x(flip_y(SHAPE_B_0)), [0, 1]);
+        case 240: return translate(flip_x(flip_y(SHAPE_B_60)), [0, 1]);
+        case 300: return translate(flip_x(flip_y(SHAPE_B_120)), [0, 1]);
+    }
+
+    throw 1;
 };
+
+var create_shape_cache = function(shape_func) {
+    return {
+        0: to_start_position(shape_func(0)),
+        60: to_start_position(shape_func(60)),
+        120: to_start_position(shape_func(120)),
+        180: to_start_position(shape_func(180)),
+        240: to_start_position(shape_func(240)),
+        300: to_start_position(shape_func(300)),
+    };
+};
+
+SHAPE_A = create_shape_cache(shape_a);
+SHAPE_B = create_shape_cache(shape_b);
 
 var restore_shape_state = function (shape, state) {
     var rotation = Math.floor(state / (HEIGHT * WIDTH / 2)) * 60;
@@ -298,7 +338,19 @@ var check_collision = function (shapes) {
 
 var states = [0, 0, 0];
 
-var shapes = _.map(states, function() {return restore_shape_state(SHAPE_A, 0)});
+var shapes = _.map(states, function() {return null});
+var update_shape = function(i) {
+    if (i === 0 || i === 1 || i === 2) {
+        shapes[i] = restore_shape_state(SHAPE_B, states[i]);
+        return;
+    }
+
+    shapes[i] = restore_shape_state(SHAPE_A, states[i]);
+};
+_.each(states, function(bla, i) {
+    update_shape(i);
+})
+
 var SHAPE_COLORS = ["#00FFF0", "#00FF00", "#0000FF", "#FFFF00", "#FF00FF"]
 var counter = 0;
 
@@ -312,6 +364,7 @@ var draw_shapes = function () {
         });
     });
 };
+draw_shapes();
 
 var try_many = function () {
     while (true) {
@@ -325,7 +378,7 @@ var try_many = function () {
         for (var i = states.length - 1; i >= 0; --i) {
             if (i > collision) {
                 states[i] = 0;
-                shapes[i] = restore_shape_state(SHAPE_A, 0);
+                update_shape(i);
                 continue;
             }
 
@@ -335,7 +388,7 @@ var try_many = function () {
                 return;
             }
             states[i]++;
-            shapes[i] = restore_shape_state(SHAPE_A, states[i]);
+            update_shape(i);
 
             if (!shapes[i] && i == 0) {
                 // We searched the entire tree
@@ -344,7 +397,7 @@ var try_many = function () {
                 // No more places to move this shape... Move the shape prior to
                 // us and begin anew.
                 states[i] = 0;
-                shapes[i] = restore_shape_state(SHAPE_A, 0);
+                update_shape(i);
             } else {
                 break;
             }

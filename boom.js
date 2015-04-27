@@ -472,14 +472,13 @@ var try_many = function () {
         var collision = check_collision(shapes);
         if (collision === -1) {
             draw_shapes();
-            console.log(states.toString());
             collision = states.length - 1;
+            return;
         }
 
         for (var i = states.length - 1; i >= 0; --i) {
             if (i > collision) {
                 states[i] = 0;
-                console.log(states);
                 update_shape(i);
                 continue;
             }
@@ -502,6 +501,7 @@ var try_many = function () {
 
         counter++;
         if (counter % 5000 === 0) {
+            draw_shapes();
             _.defer(try_many);
             return;
         }
